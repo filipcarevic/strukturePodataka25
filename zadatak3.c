@@ -332,7 +332,7 @@ int main()
             {
                 printf("unesi prezima: ");
                 scanf(" %s", surname);
-                person* found = findElement(head, "Peric");
+                person* found = findElement(head, surname);
                 if (found != NULL) printf("Pronadjen: %s %s (%d)\n", found->name, found->surname, found->birthYear);
                 break;
             }
