@@ -9,9 +9,10 @@ U zadatku se ne smiju koristiti globalne varijable.
 
 Prethodnom zadatku dodati funkcije:
 F. dinamički dodaje novi element iza određenog elementa,
-G. dinamički dodaje novi element ispred određenog elementa, C. sortira listu po prezimenima osoba,
+G. dinamički dodaje novi element ispred određenog elementa, 
 H. upisuje listu u datoteku,
-J. čita listu iz datoteke.
+J. čita listu iz datoteke. 
+K. sortira listu po prezimenima osoba,
 */
 
 #include <stdio.h>
@@ -39,6 +40,8 @@ int addElementAfter(person**head, char*surname, person *current);
 int addElementBefore(person**head, char*surname, person *current);
 int addToFile(person*head, char*fileName);
 int readFile(person** head, char* fileName);
+person* sortFile(person* head);
+int freeList(person* head);
 /*
 person**head se koristi kad zelimo promjenit vrijesnodt headai njegovu adresu. A person* head kad zelimo promjenit
 samo kopiju tog heada, nije stalna promjena.
@@ -217,7 +220,56 @@ int addElementBefore(person**head, char*surname, person *current)
     return EXIT_SUCCESS;
 }
 
+person* sortList(person* head)
+{
+    if (head == NULL || head->next == NULL) return head;
 
+    int swapped;
+    do {
+        swapped = 0;
+        person *prev = NULL;
+        person *temp = head;
+
+        while (temp->next != NULL)
+        {
+            if (strcmp(temp->surname, temp->next->surname) > 0)
+            {
+                person* A = temp;
+                person* B = temp->next;
+
+                A->next = B->next;
+                B->next = A;
+
+                if (prev == NULL) head = B;
+                else prev->next = B;
+
+                prev = B;
+                temp = A;
+
+                swapped = 1;
+            }
+            else {
+                prev = temp;
+                temp = temp->next;
+            }
+        }
+
+    } while (swapped);
+
+    return head;
+}
+
+int freeList(person* head)
+{
+    person* temp = NULL;
+    while (head != NULL)
+    {
+        temp = head;
+        head = head->next;
+        free(temp);
+    }
+    return EXIT_SUCCESS;
+}
 //tjelo koda: odabir opcija i poziv funkcija
 int main()
 {
@@ -321,11 +373,19 @@ int main()
                 readFile(&head, fileName);
                 break;
             }
+            case 'K':
+            {
+                printf("unesi prezima: ");
+                scanf(" %s", surname);
+                sortList(head);
+                break;
+            }
             default:
             {
                 printf("uensen je ne postojeca opcija: %c\n", function);
             }
         }    
     }  
+    freeList(head);
     return 0;
 } 
