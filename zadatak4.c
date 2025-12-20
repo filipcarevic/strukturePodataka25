@@ -1,159 +1,152 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 
-typedef struct term
-{
-    int coef;
-    int exp;
-    struct term *next;
-}term;
+typedef struct node{
+    int multiBase;
+    int exponent;
+    struct node *next;
+} node;
 
-term *createNewTerm(int coef, int exp);
-void insertSorted(term **head, term *newTerm);
-void printPolynomial(term *head);
-term *readFromFile(char *fileName);
-term *addPolynomials(term *p1, term *p2);
-term *multiplyPolynomials(term *p1, term *p2);
-void freeList(term *head);
+//function for making new node
+node *newNode(int multiBase, int exponent);
 
-int main()
-{
-    term *p1 = readFromFile("poly1.txt");
-    term *p2 = readFromFile("poly2.txt");
+//function for adding new node in sorted maner 
+int insertSorted(node **head, node *current);
 
-    printf("Prvi polinom:\n");
-    printPolynomial(p1);
-    printf("\nDrugi polinom:\n");
-    printPolynomial(p2);
+//function for reading file
+int readFile(char *fileName, node **head);
 
-    term *sum = addPolynomials(p1, p2);
-    term *product = multiplyPolynomials(p1, p2);
+//function for adding up values with same eksponents while just putting + for all else 
+void addingUp(node *head);
 
-    printf("\nZbroj polinoma:\n");
-    printPolynomial(sum);
-    printf("\nUmnozak polinoma:\n");
-    printPolynomial(product);
+//function for  multiplying velue in front of base number and adding up exponents if base numbers are the same 
+void multipliction(node *head);
 
-    freeList(p1);
-    freeList(p2);
-    freeList(sum);
-    freeList(product);
+//function for freeing a list 
+void freeList(node *head);
 
-    return 0;
+int main(){
+    node *head = NULL;
+    char *fileName = "polinom.txt";
+
+    printf("\noriginal list_____\n");
+    readFile(fileName, &head);
+    printf("list added up_____\n");
+    addingUp(head);
+    printf("list multiplied up_____\n");
+    multipliction(head);
+    freeList(head);
+
+    return EXIT_SUCCESS;
 }
 
-term *createNewTerm(int coef, int exp)
-{
-    term *newTerm = (term*)malloc(sizeof(term));
-    newTerm->coef = coef;
-    newTerm->exp = exp;
-    newTerm->next = NULL;
-    return newTerm;
+node *newNode(int multiBase, int exponent){
+    node *current = (node*)malloc(sizeof(node));
+    if(!current){
+        printf("Greska u alokaciji memorije za newNode! ");
+        return NULL;
+    }
+
+    current->multiBase = multiBase;
+    current->exponent = exponent;
+    current->next = NULL;
+
+    return current;
 }
 
-void insertSorted(term **head, term *newTerm)
-{
-    // ubacuje po eksponentu od najvećeg prema najmanjem
-    if(*head == NULL || (*head)->exp < newTerm->exp)
-    {
-        newTerm->next = *head;
-        *head = newTerm;
-        return;
+int insertSorted(node **head, node *current){
+    //if it is first element in list
+    if(*head==NULL){
+        current->next = *head;
+        *head = current;
+        return EXIT_SUCCESS;
     }
 
-    term *temp = *head;
-    while(temp->next != NULL && temp->next->exp > newTerm->exp)
-    {
-        temp = temp->next;
-    }
-
-    if(temp->next != NULL && temp->next->exp == newTerm->exp)
-    {
-        temp->next->coef += newTerm->coef;
-        free(newTerm);
-    }
-    else
-    {
-        newTerm->next = temp->next;
-        temp->next = newTerm;
-    }
-}
-
-void printPolynomial(term *head)
-{
-    term *temp = head;
-    while(temp != NULL)
-    {
-        printf("%dx^%d ", temp->coef, temp->exp);
-        if(temp->next != NULL && temp->next->coef > 0) printf("+ ");
-        temp = temp->next;
-    }
-    printf("\n");
-}
-
-term *readFromFile(char *fileName)
-{
-    FILE *file = fopen(fileName, "r");
-    if(file == NULL)
-    {
-        printf("Greska u otvaranju filea!\n");
-        exit(1);
-    }
-
-    int coef, exp;
-    term *head = NULL;
-
-    while(fscanf(file, "%d %d", &coef, &exp) == 2)
-    {
-        term *newTerm = createNewTerm(coef, exp);
-        insertSorted(&head, newTerm);
-    }
-
-    fclose(file);
-    return head;
-}
-
-term *addPolynomials(term *p1, term *p2)
-{
-    term *result = NULL;
-
-    while(p1 != NULL)
-    {
-        insertSorted(&result, createNewTerm(p1->coef, p1->exp));
-        p1 = p1->next;
-    }
-
-    while(p2 != NULL)
-    {
-        insertSorted(&result, createNewTerm(p2->coef, p2->exp));
-        p2 = p2->next;
-    }
-
-    return result;
-}
-
-term *multiplyPolynomials(term *p1, term *p2)
-{
-    term *result = NULL;
-
-    for(term *i = p1; i != NULL; i = i->next)
-    {
-        for(term *j = p2; j != NULL; j = j->next)
-        {
-            int coef = i->coef * j->coef;
-            int exp = i->exp + j->exp;
-            insertSorted(&result, createNewTerm(coef, exp));
+    node *temp = *head;
+    node *prev = NULL;
+    while(temp!=NULL){
+        //if it the element is with the same exponet like current(6x^6 + 12x^7 + 3x^9 + 6x^7 +)
+        if(temp->exponent == current->exponent){
+            temp->multiBase += current->multiBase;
+            free(current);
+            return EXIT_SUCCESS;
         }
-    }
+        
+        //if temp->multiBase manji od current->multiBase
+        if(temp->multiBase < current->multiBase && prev!=NULL)
+        {
+            prev->next = current;
+            current->next = temp;
+            return EXIT_SUCCESS;
+        }
+        
+        //if prev==NULL
+        if(prev==NULL && temp->multiBase < current->multiBase){
+            current->next = temp;
+            *head = current;
+            return EXIT_SUCCESS;
+        }
 
-    return result;
+        //all other posibilities -> el. is last one
+        if(temp->next==NULL){
+            temp->next = current;
+            current->next = NULL;
+            return EXIT_SUCCESS;
+        }
+
+        prev = temp;
+        temp = temp->next;
+    }
 }
 
-void freeList(term *head)
-{
-    term *temp;
-    while(head != NULL)
+int readFile(char *fileName, node **head){
+    int multiBase, exponent;
+
+    FILE *file = fopen(fileName, "r");
+    if(!file){
+        printf("Greska u otvaranju filea! ");
+        return EXIT_FAILURE;
+    }
+    
+    while(fscanf(file, "%dx^%d", &multiBase, &exponent)==2){
+        printf("%dx^%d\n", multiBase, exponent);
+        node *current = newNode(multiBase, exponent);
+        insertSorted(head, current);
+    }
+    puts("\n");
+
+    return EXIT_SUCCESS;
+}
+
+void addingUp(node *head){
+    node *temp = head;
+    while(temp!=NULL){
+        printf(" %dx^%d +", temp->multiBase, temp->exponent);
+        temp = temp->next;
+    }
+    puts("\n");
+}
+
+void multipliction(node *head){
+    node *temp = head;
+    int nextToBase=1, exponent=0; 
+
+    while(temp!=NULL)
     {
+        nextToBase *= temp->multiBase;
+        exponent += temp->exponent;
+        temp = temp->next;
+    }
+
+    printf("%dx^%d\n", nextToBase, exponent);
+}
+
+void freeList(node *head){
+    node *temp = NULL;
+
+    while(head!=NULL){
         temp = head;
         head = head->next;
         free(temp);
