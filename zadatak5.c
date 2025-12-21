@@ -1,108 +1,118 @@
-
-/*Napisati program koji iz datoteke čita postfiks izraz i zatim korištenjem stoga računa rezultat. Stog je potrebno realizirati preko vezane liste.*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdbool.h>
 
-// DEFINICIJA STOGA PREKO VEZANE LISTE
-typedef struct stackThing {
-    double number;              // broj koji spremamo
-    struct stackThing* next;    // pokazivač na sljedeći element stoga
-} stackThing;
+typedef struct node{
+    double postfix;
+    struct node *next;
+} node;
 
-// KREIRANJE NOVOG ELEMENTA
-stackThing* makeNewThing(double n) {
-    stackThing* t = (stackThing*)malloc(sizeof(stackThing));
-    if(t == NULL) return NULL;
-    t->number = n;
-    t->next = NULL;
-    return t;
-}
+//creating new node
+node *newNode(double postfix);
 
-// STAVI ELEMENT NA VRH STOGA
-int putOnTop(stackThing** top, double n) {
-    stackThing* t = makeNewThing(n);
-    if(t == NULL) return EXIT_FAILURE;
-    t->next = *top;
-    *top = t;
+//add to stog__push
+int push(node **head, node *current);
+
+//take form stog__pop
+double pop(node **head);
+
+//read from file
+int readFile(char *fileName, node **head);
+
+double calculate(double a, double b, char operator);
+
+//free list
+void freeList(node **head);
+
+int  main(){
+    node *head = NULL;
+    char *fileName = "postfix.txt";
+
+    readFile(fileName, &head);
+    freeList(&head);
+    
     return EXIT_SUCCESS;
 }
 
-// UZMI ELEMENT SA VRHA STOGA
-int takeFromTop(stackThing** top, double* out) {
-    if(*top == NULL) {
-        printf("Stog je prazan!\n");
-        return EXIT_FAILURE;
+node *newNode(double postfix){
+    node *current = (node*)malloc(sizeof(node));
+    if(!current){
+        printf("Greska u alokaciji memorije! ");
+        return NULL;
     }
-    stackThing* temp = *top;
-    *out = temp->number;
-    *top = temp->next;
+
+    current->postfix = postfix;
+    current->next = NULL;
+
+    return current;
+}
+
+int push(node **head, node *current){
+        current->next = *head;
+        *head = current;
+
+        return EXIT_SUCCESS;        
+}
+
+double pop(node **head){
+    double element = (*head)->postfix;
+    node *temp = *head;
+
+    *head = (*head)->next;
     free(temp);
-    return EXIT_SUCCESS;
+    
+    return element;
 }
 
-// PROVJERA JE LI ZNAK OPERATOR
-int isSign(char c) {
-    return c=='+' || c=='-' || c=='*' || c=='/';
-}
-
-// OSLABLJENA EVALUACIJA POSTFIKS IZRAZA
-int doMath(char* expr, double* result) {
-    stackThing* myStack = NULL;
-    char* tok = strtok(expr, " ");
-
-    while(tok != NULL) {
-        if(isdigit(tok[0]) || (tok[0]=='-' && isdigit(tok[1]))) {
-            if(putOnTop(&myStack, atof(tok)) == EXIT_FAILURE) return EXIT_FAILURE;
-        } else if(isSign(tok[0])) {
-            double b, a;
-            if(takeFromTop(&myStack, &b) == EXIT_FAILURE) return EXIT_FAILURE;
-            if(takeFromTop(&myStack, &a) == EXIT_FAILURE) return EXIT_FAILURE;
-
-            switch(tok[0]) {
-                case '+': if(putOnTop(&myStack, a+b) == EXIT_FAILURE) return EXIT_FAILURE; break;
-                case '-': if(putOnTop(&myStack, a-b) == EXIT_FAILURE) return EXIT_FAILURE; break;
-                case '*': if(putOnTop(&myStack, a*b) == EXIT_FAILURE) return EXIT_FAILURE; break;
-                case '/': if(putOnTop(&myStack, a/b) == EXIT_FAILURE) return EXIT_FAILURE; break;
-            }
-        } else {
-            printf("Nepoznat token: %s\n", tok);
-        }
-        tok = strtok(NULL, " ");
-    }
-
-    if(takeFromTop(&myStack, result) == EXIT_FAILURE) return EXIT_FAILURE;
-
-    // OSLOBODI STOG AKO JE OSTALO NEŠTO
-    while(myStack != NULL) {
-        stackThing* temp = myStack;
-        myStack = myStack->next;
-        free(temp);
-    }
-
-    return EXIT_SUCCESS;
-}
-
-int main() {
-    char line[256];
-    FILE* f = fopen("postfiks.txt", "r");
-    if(f == NULL) {
-        printf("Ne mogu otvoriti datoteku.\n");
+int readFile(char *fileName, node **head){
+    FILE *file = fopen(fileName, "r");
+    if(!file){
+        printf("Failed to open file! ");
         return EXIT_FAILURE;
     }
-
-    while(fgets(line, sizeof(line), f)) {
-        line[strcspn(line, "\n")] = 0;
-        double res;
-        if(doMath(line, &res) == EXIT_SUCCESS) {
-            printf("Rezultat \"%s\" = %.2f\n", line, res);
-        } else {
-            printf("Greska pri evaluaciji izraza \"%s\"\n", line);
+    
+    char line[256];
+    while(fgets(line, sizeof(line), file)!=NULL){
+        char *element = strtok(line, " \n\r");
+        while(element!=NULL){
+            //check weather element is  character or double and depanding on that make action 
+            if(isdigit(element[0]) || (element[0]=='-' && isdigit(element[1]))){
+                double value = atof(element);
+                node *current = newNode(value);
+                push(head, current);
+            } else{
+                double b = pop(head);
+                double a = pop(head);
+                double result = calculate(a, b, element[0]);
+                node *current = newNode(result);
+                push(head, current);
+            }
+            
+            element = strtok(NULL, " \n\r");
         }
     }
 
-    fclose(f);
     return EXIT_SUCCESS;
+}
+
+double calculate(double a, double b, char operator){
+    double result;
+
+    switch(operator){
+    case '+': result = a + b; break;
+    case '-': result = a - b; break;
+    case '*': result = a * b; break;
+    case '/': result = a / b; break;
+    }
+
+    return result;
+}
+
+void freeList(node **head){
+    while(*head!=NULL){
+        printf("%f\n", (*head)->postfix);
+        pop(head);
+    }
 }
