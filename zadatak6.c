@@ -1,135 +1,250 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-typedef struct Article {
-    char name[100];
-    int qty;
+typedef struct article{
+    char name[20];
+    int quantity;
     float price;
-    struct Article *next;
-} Article;
+    struct article *next;
+} article;
 
-typedef struct Bill {
-    char date[11]; 
-    Article *articles;
-    struct Bill *next;
-} Bill;
+typedef struct bill{
+    int year, month, day;
+    article *articleHead;
+    struct bill *next;
+} bill;
 
-/* umetanje artikla sortirano po nazivu */
-void insertArticleSorted(Article **head, Article *newA) {
-    if (*head == NULL || strcmp(newA->name, (*head)->name) < 0) {
-        newA->next = *head;
-        *head = newA;
-        return;
+typedef struct{
+    bill *front;
+    bill *rear;
+} manager;
+
+//make new  nodes for bill and for articles
+bill *newBillNode(int year, int month, int day);
+article *newArticleNode(char const *name, int quantity, float price);
+
+int compareDates(bill *a, bill *b);
+
+//make enqueue for both bill and article
+int billEnqueue(manager *manager, bill *newBill);
+int articleEnqueue(bill *currentBill, article *newArticle);
+
+//function to read all file
+int readFile(char *fileName, manager *manager);
+
+//find specific article; its total price in specific time pariod as well quantity of it
+int findData(char *name, char *date, manager *manager);
+
+//function for freeing(dequeue) and printing out all elements 
+void dequeue(manager *manager);
+
+int main(){
+    char *fileName = "racuni.txt";
+    char name[69], date[69];
+
+    manager m;
+    m.front = NULL;
+    m.rear = NULL;
+
+    readFile(fileName, &m);
+
+    printf("What is date you want to chek for article? Like this: YY-MM-DD! ");
+    scanf("%s", date);
+    printf("Name of article with capital first letter? ");
+    scanf("%s", name);
+
+    puts("\n");
+    findData(name, date, &m);
+    puts("\n");
+    dequeue(&m);
+
+    return EXIT_SUCCESS;
+}
+
+bill *newBillNode(int year, int month, int day){
+    bill *newBill = (bill*)malloc(sizeof(bill));
+    if(!newBill){
+        printf("error in alocating memory for new bill! \n");
+        return NULL;
     }
-    Article *temp = *head;
-    while (temp->next && strcmp(newA->name, temp->next->name) > 0)
+
+    newBill->year = year;
+    newBill->month = month;
+    newBill->day = day;
+    newBill->next = NULL;
+    newBill->articleHead = NULL;
+
+    return newBill;
+}
+
+article *newArticleNode(char const *name, int quantity, float price){
+    article *newArticle = (article*)malloc(sizeof(article));
+    if(!newArticle){
+        printf("error in alocating memory for new article! ");
+        return NULL;
+    }
+
+    strcpy(newArticle->name, name);
+    newArticle->quantity = quantity;
+    newArticle->price = price;
+    newArticle->next = NULL;
+
+    return newArticle;
+}
+
+int compareDates(bill *a, bill *b){
+        if(a->year != b->year) return a->year - b->year;
+        else if(a->month != b->month) return a->month - b->month;
+        return a->day - b->day;
+}
+
+int billEnqueue(manager *manager, bill *newBill){
+    if(manager->front==NULL){
+        manager->front = manager->rear = newBill;
+        return EXIT_SUCCESS;
+    }
+
+    bill *temp = manager->front;
+    bill *prev = NULL;
+    
+    while(temp!=NULL && compareDates(temp, newBill)>0){
+        prev = temp;
         temp = temp->next;
-    newA->next = temp->next;
-    temp->next = newA;
+    }
+
+    if(prev==NULL){
+        newBill->next = temp;
+        manager->front = newBill;
+    } else{
+        prev->next = newBill;
+        newBill->next = temp;
+
+        if(temp==NULL) manager->rear = newBill;
+    }
+
+    return EXIT_SUCCESS;
 }
 
-/* umetanje računa sortirano po datumu */
-void insertBillSorted(Bill **head, Bill *newB) {
-    if (*head == NULL || strcmp(newB->date, (*head)->date) < 0) {
-        newB->next = *head;
-        *head = newB;
-        return;
+int articleEnqueue(bill *currentBill, article *newArticle){
+    if(currentBill->articleHead==NULL){
+        currentBill->articleHead = newArticle;
+        return EXIT_SUCCESS;
     }
-    Bill *temp = *head;
-    while (temp->next && strcmp(newB->date, temp->next->date) > 0)
+
+    article *temp = currentBill->articleHead;
+    article *prev = NULL;
+
+    while(temp!=NULL && strcmp(temp->name, newArticle->name)<0){
+        prev = temp;
         temp = temp->next;
-    newB->next = temp->next;
-    temp->next = newB;
-}
-
-/* učitavanje pojedine datoteke računa */
-Bill* loadSingleBill(char *filename) {
-    FILE *f = fopen(filename, "r");
-    if (!f) return NULL;
-
-    Bill *b = malloc(sizeof(Bill));
-    b->articles = NULL;
-    b->next = NULL;
-
-    fgets(b->date, 11, f);
-
-    char name[100];
-    int qty;
-    float price;
-
-    /* čitanje artikala */
-    while (fscanf(f, "%[^,], %d, %f\n", name, &qty, &price) == 3) {
-        Article *a = malloc(sizeof(Article));
-        strcpy(a->name, name);
-        a->qty = qty;
-        a->price = price;
-        a->next = NULL;
-        insertArticleSorted(&b->articles, a);
     }
 
-    fclose(f);
-    return b;
-}
-
-/* učitavanje svih računa iz racuni.txt */
-Bill* loadBills() {
-    FILE *f = fopen("racuni.txt", "r");
-    if (!f) return NULL;
-
-    Bill *head = NULL;
-    char filename[100];
-
-    while (fscanf(f, "%s", filename) == 1) {
-        Bill *b = loadSingleBill(filename);
-        if (b) insertBillSorted(&head, b);
+    if(prev==NULL){
+        newArticle->next = temp;
+        currentBill->articleHead = newArticle;
+    } else{
+        prev->next = newArticle;
+        newArticle->next = temp;
     }
-    fclose(f);
-    return head;
+
+    return EXIT_SUCCESS;
 }
 
-/* izračun troška i količine za artikl u intervalu */
-void query(Bill *head, char *target, char *dateFrom, char *dateTo) {
-    float totalMoney = 0.0;
-    int totalQty = 0;
+int readFile(char *fileName, manager *manager){
+    FILE *mainFile = fopen(fileName, "r");
+    if(!mainFile){
+        printf("error in opening of main file! \n");
+        return EXIT_FAILURE;
+    }
 
-    Bill *b = head;
-    while (b) {
-        if (strcmp(b->date, dateFrom) >= 0 && strcmp(b->date, dateTo) <= 0) {
-            Article *a = b->articles;
-            while (a) {
-                if (strcmp(a->name, target) == 0) {
-                    totalMoney += a->qty * a->price;
-                    totalQty += a->qty;
-                }
-                a = a->next;
+    char subFileName[69];
+    while(fgets(subFileName, sizeof(subFileName), mainFile)!=NULL){
+        subFileName[strcspn(subFileName, "\r\n")] = '\0';
+
+        FILE *subFile = fopen(subFileName, "r");
+        if(!subFile){
+            printf("error in opening of sub file! \n");
+            return EXIT_FAILURE;
+        }
+
+        bill *currentBill = NULL;
+
+        int year, month, day, quantity;
+        char name[20];
+        float price;
+        char subFileTxt[69];
+
+        while(fgets(subFileTxt, sizeof(subFileTxt), subFile)!=NULL){
+            if(sscanf(subFileTxt, "%d-%d-%d", &year, &month, &day)==3){
+                bill *newBill = newBillNode(year, month, day);
+                currentBill = newBill;
+                billEnqueue(manager, newBill);
+            } 
+
+            else if(sscanf(subFileTxt, "%[^,], %d, %f", name, &quantity, &price)==3){
+                article *newArticle = newArticleNode(name, quantity, price);
+                articleEnqueue(currentBill, newArticle);
             }
         }
-        b = b->next;
+        fclose(subFile);
     }
+    fclose(mainFile);
 
-    printf("Ukupno potroseno za '%s': %.2f\n", target, totalMoney);
-    printf("Ukupno kupljena kolicina: %d\n", totalQty);
+    return EXIT_SUCCESS;
 }
 
-int main() {
-    Bill *bills = loadBills();
-    if (!bills) {
-        printf("Greska pri ucitavanju.\n");
-        return 1;
+int findData(char *name, char *date, manager *manager){
+    int year, month, day;
+    sscanf(date, "%d-%d-%d ", &year, &month, &day);
+
+    bill *temp = manager->front;
+    while(temp!=NULL){
+        if(temp->year==year){
+            if(temp->month==month){
+                if(temp->day==day) break;
+            }
+        }
+
+        temp = temp->next;
     }
 
-    char item[100], date1[11], date2[11];
+    if(temp==NULL){
+        printf("there is no bill under that date! \n");
+        return EXIT_FAILURE;
+    } else{
+        article *tempArticle = temp->articleHead;
 
-    /* korisnicki unos */
-    printf("Artikl: ");
-    scanf("%s", item);
-    printf("Datum od (YYYY-MM-DD): ");
-    scanf("%s", date1);
-    printf("Datum do (YYYY-MM-DD): ");
-    scanf("%s", date2);
+        while(tempArticle!=NULL){
+            if(strcmp(tempArticle->name, name)==0){
+                printf("%s is bought %d times and price of it all was %f\n", name, tempArticle->quantity, tempArticle->price*tempArticle->quantity);
+                return EXIT_SUCCESS;
+            }
 
-    query(bills, item, date1, date2);
+            tempArticle = tempArticle->next;
+        }
 
-    return 0;
+        printf("there is no such item in bill under that date! \n");
+    } 
+
+    return EXIT_FAILURE;
+}
+
+void dequeue(manager *manager){
+    while(manager->front!=NULL){
+        bill *temp = manager->front;
+        printf("%d-%d-%d\n", temp->year, temp->month, temp->day);
+        
+        while(temp->articleHead!=NULL){
+            article *artTemp = temp->articleHead;
+            printf("%s, %d, %f\n", artTemp->name, artTemp->quantity, artTemp->price);
+            temp->articleHead = temp->articleHead->next;
+            free(artTemp);
+        }
+        puts("\n");
+
+        manager->front = manager->front->next;
+        free(temp);
+    }
 }
