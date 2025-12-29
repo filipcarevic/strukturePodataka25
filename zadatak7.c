@@ -2,85 +2,174 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct Node {
-    char name[64];
-    struct Node* parent;
-    struct Node* child;
-    struct Node* sibling;
-} Node;
+//from the begging 
+//I need to write code that allowes infinite directories that are connected in tree structure
+//first one is root(first/og parent), than comes first child that can either point to the next sibling that is in same level as him 
+//or can point to his first child which will now make him a parent -> firstChild is for depth, nextSibling is for width
+//that sequence can repete idenfiinitely 
+//stack  is used to remeber last directory(parent or previouse child)
+//task can also be done by having parent node inside of struct
 
-Node* createNode(const char* name, Node* parent) {
-    Node* n = (Node*)malloc(sizeof(Node));
-    strcpy(n->name, name);
-    n->parent = parent;
-    n->child = NULL;
-    n->sibling = NULL;
-    return n;
-}
+typedef struct directory{
+    char name[69];
+    struct directory *firstChild;
+    struct directory *nextSibling;
+} dir;
 
-void addDir(Node* current, const char* name) {
-    Node* newDir = createNode(name, current);
-    if (current->child == NULL)
-        current->child = newDir;
-    else {
-        Node* temp = current->child;
-        while (temp->sibling != NULL)
-            temp = temp->sibling;
-        temp->sibling = newDir;
+typedef struct stack{
+    dir *dirAddress;
+    struct stack *next;
+} stack;
+
+dir *creatNewNode(char *name);
+
+//making new directory inside of current one
+void md(dir *newNode, dir *currentDir);
+
+//moving to next directory inside of current if there is one 
+dir *cd(dir *currentDir, char *name);
+
+void printTree(dir* current, int level);
+
+//stack functoins
+//for push I need current directory and somewhere I will save that directory by name
+stack *makeNewStackNode(dir *currentDirectory);
+void push(stack *current, stack **head);
+dir *pop(stack **head);
+
+void cleanDirectory(dir *parent, stack **head);
+
+int main(){
+    dir *root = creatNewNode("c");
+    dir *currentDir = root;
+    char name[69];
+    char opereation[5];
+    stack *head = NULL;
+
+    while(1){
+        //seting up input
+        printTree(currentDir, 0);
+
+        printf("\n$ ");
+        gets(name);
+        sscanf(name, "%s %s", opereation, name);
+
+        name[strcspn(name, "\r\n")] = '\0';
+        opereation[strcspn(opereation, "\r\n")] = '\0';
+
+        //______________________________
+        if(strcmp(opereation, "break")==0){
+            cleanDirectory(currentDir, &head);
+
+            return EXIT_SUCCESS;
+        }
+    
+        if(strcmp(opereation, "md")==0){
+            dir *newNode = creatNewNode(name);
+            md(newNode, currentDir);
+        }
+        
+        if(strcmp(opereation, "cd") == 0) {
+            dir *target = cd(currentDir, name);
+
+            if(target != currentDir) {
+                stack *newStackNode = makeNewStackNode(currentDir); 
+                push(newStackNode, &head);
+                currentDir = target;
+            }
+        }
+        
+        if(strcmp(opereation, "cd..") == 0){
+        dir *previous = pop(&head);
+
+        if(previous!=NULL) currentDir = previous;
+        }
     }
 }
 
-Node* changeDir(Node* current, const char* name) {
-    Node* temp = current->child;
-    while (temp != NULL) {
-        if (strcmp(temp->name, name) == 0)
+dir *creatNewNode(char *name){
+    dir *newNode = (dir*)malloc(sizeof(dir));
+    if(!newNode){
+        printf("fault in alocating memory for new node! ");
+        return NULL;
+    }
+    strcpy(newNode->name, name);
+    newNode->firstChild = NULL;
+    newNode->nextSibling = NULL;
+
+    return newNode;
+}
+
+void md(dir *newNode, dir *currentDir){
+    if(currentDir->firstChild==NULL){
+        currentDir->firstChild = newNode;
+    } else{
+        dir *temp = currentDir->firstChild;
+
+        while(temp->nextSibling!=NULL){
+            temp = temp->nextSibling;
+        }
+        temp->nextSibling = newNode;
+    }
+}
+
+dir *cd(dir *currentDir, char *name){
+    dir *temp = currentDir->firstChild;
+
+    while(temp!=NULL){
+        if(strcmp(temp->name, name)==0){
             return temp;
-        temp = temp->sibling;
+        }
+        temp = temp->nextSibling;
     }
-    printf("Direktorij ne postoji\n");
+    printf("cd: %s: No such file or directory\n", name);
+    return currentDir;
+}
+
+void printTree(dir* current, int level) {
+    if (current == NULL) return;
+
+    for (int i = 0; i < level; i++) printf("  ");
+    printf("%s\n", current->name);
+
+    printTree(current->firstChild, level + 1);
+
+    printTree(current->nextSibling, level);
+}
+
+stack *makeNewStackNode(dir *currentDirectory){
+    stack *current = (stack*)malloc(sizeof(stack));
+    if(!current){
+        printf("fault in alocating memory for current! ");
+        return NULL;
+    }
+
+    current->dirAddress = currentDirectory;
+    current->next = NULL;
+
     return current;
 }
 
-void listDir(Node* current) {
-    Node* temp = current->child;
-    if (temp == NULL) {
-        printf("Direktorij je prazan\n");
-        return;
-    }
-    while (temp != NULL) {
-        printf("%s\n", temp->name);
-        temp = temp->sibling;
-    }
+void push(stack *current, stack **head){
+    current->next = *(head);
+    *(head) = current;
 }
 
-int main() {
-    Node* root = createNode("C:", NULL);
-    Node* current = root;
-    int choice;
-    char name[64];
+dir *pop(stack **head){
+    if (*head == NULL) return NULL;
 
-    while (1) {
-        printf("\n1-md 2-cd dir 3-cd.. 4-dir 5-izlaz\n");
-        scanf("%d", &choice);
+    stack *temp = *head;
+    dir *address = temp->dirAddress; 
+    
+    *head = temp->next;
+    free(temp);
 
-        switch (choice) {
-        case 1:
-            scanf("%s", name);
-            addDir(current, name);
-            break;
-        case 2:
-            scanf("%s", name);
-            current = changeDir(current, name);
-            break;
-        case 3:
-            if (current->parent != NULL)
-                current = current->parent;
-            break;
-        case 4:
-            listDir(current);
-            break;
-        case 5:
-            return 0;
-        }
+    return address;
+}
+
+void cleanDirectory(dir *parent, stack **head){
+    while(parent!=NULL){
+        dir *prev = pop(head);
+        free(prev);
     }
 }
