@@ -2,211 +2,200 @@
 #include <stdlib.h>
 #include <string.h>
 
+//general functions for BST tree
+
 typedef struct tree{
-    int value;
+    int element;
     struct tree *left;
     struct tree *right;
 } tree;
 
-typedef struct queue{
+tree *creatNewTreeNode(int element);
+tree *addElement(tree *current, int element);
+void inorder(tree *current);
+void preorder(tree *current);
+void postorder(tree *current);
+void deleteTree(tree *current);
+tree *findElement(tree *current, int element);
+
+//functions I need to make enqueue/dequeue for level order 
+
+typedef struct node{
     struct tree *currentTreeNode;
-    struct queue *next;
-} queue;
+    struct node *next;
+} node; //forgot to call it queue but it is queue called node :)
 
 typedef struct{
-    struct queue *front;
-    struct queue *rear;
-} menager;
+    struct node *front;
+    struct node *rear;
+} manager;
 
-//functions I will need and almost all will use godforsaken recursions 
-//creating new Node
-tree *creatNewNode(int value);
-
-//adding new element in tree
-tree *addNode(tree *currentLevel, int value);
-
-//printing out element in few ways 
-//inorder -> Left, Root, Right
-void inorder(tree *currentLevel);
-
-//preorder -> Root, Left, Right
-void preorder(tree *currentLevel);
-
-//postorder -> Left, Right, Root
-void postorder(tree *currentLevel);
-
-//level order -> Visit Root (Level 0), then all children (Level 1), then all grandchildren (Level 2)
-//think I will need queue for this one - hope not!
-//Yep, queue it is 
-//queue functions 
-queue *newQueueNode(tree *newNode);
-void enqueue(queue *newQNode, menager *m);
-queue *dequeue(menager *m);
-
-void levelOrder(menager *m, tree *root);
-
-//finding element i guess by value 
-tree *findElement(int value, tree *currentLevel);
-
-//deleting tree
-void deletingTree(tree *currentLevel);
+node *creatNewNode(tree *currentElement);
+void enqueue(manager *m, node *current);
+node *dequeue(manager *m);
+void levelOrder(manager *m, tree *root); 
+void freeQueue(manager *m);
 
 int main(){
-    menager m;
-    m.front = NULL;
-    m.rear = NULL;
-
-    int value;
-
-    printf("what will be root value: ");
-    scanf("%d", &value);
-
+    manager m; m.front = NULL; m.rear = NULL;
     tree *root = NULL;
-    root = addNode(root, value);  
-    
+    int element;
+
     while(1){
-        printf("write a number other than 0 which is to finish: ");
-        scanf("%d", &value);
+        printf("input the element: ");
+        scanf("%d", &element);
+        if(element==-1) break;
 
-        if(value==0) break;
-
-        addNode(root, value);
+        if(root==NULL){
+            root = addElement(root, element);
+        } else{
+            addElement(root, element);
+        }
     }
 
-    printf("inorder: ");
+    printf("\n____inorder____\n");
     inorder(root);
 
-    printf("\npostorder: ");
-    postorder(root);
-
-    printf("\npreorder: ");
+    printf("\n____prerder____\n");
     preorder(root);
 
-    printf("\nlevel order: ");
+    printf("\n____postorder____\n");
+    postorder(root);
+
+    printf("\n____level order____\n");
     levelOrder(&m, root);
 
-    printf("\nwhat elemnt do you want to find: ");
-    scanf("%d", &value);
-    tree *element = findElement(value, root);
-    if(element!=NULL){
-        printf("\n%d is in list! ", value);
+    printf("\n\nwhat element do you want to find: ");
+    scanf("%d", &element);
+    tree *found = findElement(root, element);
+    if(found!=NULL){
+        printf("%d is in tree!\n", element);
     } else{
-        printf("\n%d is not in list! ", value);
+        printf("%d is not in tree!\n", element);
     }
-    
 
-    return EXIT_SUCCESS;
+    deleteTree(root);
+
+    return EXIT_FAILURE;
 }
 
-tree *creatNewNode(int value){
-    tree *newNode = (tree*)malloc(sizeof(tree));
-    if(!newNode){
-        printf("fault in allocating memory for new node! ");
+tree *creatNewTreeNode(int element){
+    tree *newTreeNode = (tree*)malloc(sizeof(tree));
+    if(newTreeNode==NULL){
+        printf("Fault in allocating memory for new tree node! ");
         return NULL;
     }
 
-    newNode->value = value;
-    newNode->left = NULL;
-    newNode->right = NULL;
+    newTreeNode->element = element;
+    newTreeNode->left = NULL;
+    newTreeNode->right = NULL;
 
-    return newNode;
+    return newTreeNode;
 }
 
-//If I am gonna use recursions I will have to check wether I currentLevel is final(NULL) one and if not keep going down
-tree *addNode(tree *currentLevel, int value){
-    if(currentLevel==NULL) return creatNewNode(value);
+//left when current value is smaller than element
+tree *addElement(tree *current, int element){
+    if(current==NULL) return creatNewTreeNode(element);
+    if(current->element > element) current->left = addElement(current->left, element);
+    if(current->element < element) current->right = addElement(current->right, element);
 
-    if(value < currentLevel->value) currentLevel->left = addNode(currentLevel->left, value);
+    return current;
 
-    else if(value > currentLevel->value) currentLevel->right = addNode(currentLevel->right, value);
-
-    return currentLevel;
 }
 
-//for recursion will need to go to the leftest of left values than and only than go to midle value in level above than to the right value in level same as leftest value and so on 
-void inorder(tree *currentLevel){
-    if(currentLevel==NULL) return;
+//Left, Root, Right
+void inorder(tree *current){
+    if(current==NULL) return;
 
-    inorder(currentLevel->left);
-    printf("%d ", currentLevel->value);
-    inorder(currentLevel->right);
+    inorder(current->left);
+    printf("%d ", current->element);
+    inorder(current->right);
 }
 
-void preorder(tree *currentLevel){
-    if(currentLevel==NULL) return;
+//Root, Left, Right
+void preorder(tree *current){
+    if(current==NULL) return;
 
-    printf("%d ", currentLevel->value);
-    preorder(currentLevel->left);
-    preorder(currentLevel->right);
+    printf("%d ", current->element);
+    inorder(current->left);
+    inorder(current->right);
 }
 
-void postorder(tree *currentLevel){
-    if(currentLevel==NULL) return;
+//Left, Right, Root
+void postorder(tree *current){
+    if(current==NULL) return;
 
-    preorder(currentLevel->left);
-    preorder(currentLevel->right);
-    printf("%d ", currentLevel->value);
+    inorder(current->left);
+    inorder(current->right);
+    printf("%d ", current->element);
+
 }
 
-queue *newQueueNode(tree *newNode){
-    queue *newQNode = (queue*)malloc(sizeof(queue));
-    if(!newNode){
-        printf("fault in allocating memory for new Q node! ");
+void deleteTree(tree *current){
+    if(current==NULL) return;
+
+    deleteTree(current->left);
+    deleteTree(current->right);
+
+    free(current);
+}
+
+tree *findElement(tree *current, int element){
+    if(current==NULL || current->element==element) return current;
+
+    if(current->element > element) current = findElement(current->left, element);
+    else current = findElement(current->right, element);
+
+    return current;
+}
+
+node *creatNewNode(tree *currentElement){
+    node *newQueueNode = (node*)malloc(sizeof(node));
+    if(newQueueNode==NULL){
+        printf("fault in allocatiing memory for the new queue node! ");
         return NULL;
     }
 
-    newQNode->currentTreeNode = newNode;
-    newQNode->next = NULL;
+    newQueueNode->currentTreeNode = currentElement;
+    newQueueNode->next = NULL;
 
-    return newQNode;
+    return newQueueNode;
 }
 
-void enqueue(queue *newQNode, menager *m){
+void enqueue(manager *m, node *current){
     if(m->front==NULL){
-        m->front = m->rear = newQNode;
-    } else{
-        m->rear->next = newQNode;
-        m->rear = newQNode;
+        m->front = m->rear = current;
+    }else{
+        m->rear->next = current;
+        m->rear = current;
     }
 }
 
-queue *dequeue(menager *m){
-    queue *temp = m->front;
-    m->front = m->front->next;
+node *dequeue(manager *m){
+    if(m->front==NULL){
+        m->rear=NULL;
+        return NULL;
+    }
 
-    if(m->front==NULL) m->rear = NULL;
+    node *temp = m->front;
+    m->front = m->front->next;
 
     return temp;
 }
 
-void levelOrder(menager *m, tree *root){
-    queue *first = newQueueNode(root);
-    enqueue(first, m);
-
+//Visit Root (Level 0), then all children (Level 1), then all grandchildren (Level 2)
+void levelOrder(manager *m, tree *root){
+    node *first = creatNewNode(root);
+    enqueue(m, first);
+    
     while(m->front!=NULL){
-        queue *temp = dequeue(m);
-        printf("%d ", temp->currentTreeNode->value);
+        node *current = dequeue(m);
+        printf("%d ", current->currentTreeNode->element);
 
-        queue *current = NULL;
-        
-        if(temp->currentTreeNode->left!=NULL){
-            current = newQueueNode(temp->currentTreeNode->left);
-            enqueue(current, m);
-        }
+        if(current->currentTreeNode->left!=NULL) enqueue(m, creatNewNode(current->currentTreeNode->left));
 
-        if(temp->currentTreeNode->right!=NULL){
-            current = newQueueNode(temp->currentTreeNode->right);
-            enqueue(current, m);
-        } 
-        
-        free(temp);
+        if(current->currentTreeNode->right!=NULL) enqueue(m, creatNewNode(current->currentTreeNode->right));
+
+        free(current);
     }
-}
-
-tree *findElement(int value, tree *currentLevel){
-    if(currentLevel==NULL || currentLevel->value==value) return currentLevel;
-
-    if(currentLevel->value > value) return findElement(value, currentLevel->left);
-
-    return findElement(value, currentLevel->right);
 }
